@@ -1,0 +1,17 @@
+#/bin/bash
+DOCKER_HOST_IP=$(ip addr show docker0 | grep 'inet ' | awk '{ print $2 }' | awk -F '/' '{ print $1 }')
+export UID DOCKER_HOST_IP
+mkdir -p docker/wp-cli-cache
+mkdir -p wordpress
+docker-compose down
+[ "$1" = "clean" ] && echo removing docker volumes && docker volume rm `docker volume ls -q`
+docker-compose up -d db-headless wp-headless phpmyadmin
+echo -n waiting for wordpress
+if [ "$1" = "clean" ]
+then
+	until x=$(docker-compose logs wp-headless | grep "Great. You can now log into WordPress at:"); do echo -n .; done
+else
+	until x=$(docker-compose logs wp-headless | grep "WordPress is already installed, exiting."); do echo -n .; done
+fi
+echo
+echo $x

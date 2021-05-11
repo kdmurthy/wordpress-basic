@@ -1,0 +1,50 @@
+version: '3'
+
+services:
+    db-headless:
+        container_name: db-headless
+        environment:
+            - MYSQL_RANDOM_ROOT_PASSWORD=${WORDPRESS_DB_NAME}
+            - MYSQL_DATABASE=${WORDPRESS_DB_NAME}
+            - MYSQL_PASSWORD=${WORDPRESS_DB_PASSWORD}
+            - MYSQL_USER=${WORDPRESS_DB_USER}
+        image: mariadb
+        volumes:
+            - db:/var/lib/mysql
+        ports:
+            - '3307:3306'
+
+    phpmyadmin:
+        image: phpmyadmin
+        container_name: phpmyadmin
+        restart: always
+        links:
+            - db-headless:db
+        ports:
+            - 8090:80
+        environment:
+            - PMA_HOST=db-headless
+            - PMA_PORT=3306
+
+    wp-headless:
+        image: wp-headless
+        command: bash -c 'install_wordpress && apache2-foreground'
+        container_name: wp-headless
+        depends_on:
+            - db-headless
+        env_file: ./.env
+        ports:
+            - '8080:8080'
+        user: '${UID}:sudo'
+        extra_hosts:
+            - "host.docker.internal:${DOCKER_HOST_IP}"
+        environment:
+            XDEBUG_CONFIG: client_host=host.docker.internal client_port=9000
+        volumes:
+            - ./wordpress:/var/www/html
+            - ./docker/install_wordpress.sh:/usr/local/bin/install_wordpress
+            - ./docker/wp-cli-cache://home/wordpress/.wp-cli
+            - ./docker/php.ini:/usr/local/etc/php/php.ini
+
+volumes:
+  db:
